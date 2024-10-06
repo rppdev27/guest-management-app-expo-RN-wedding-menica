@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet, Button, TextInput, Alert, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { SvgUri } from 'react-native-svg';
 import { useFonts } from 'expo-font';
+import { AuthContext } from '../../context/authContext';
 
 import {
   PlusJakartaSans_200ExtraLight,
@@ -29,6 +30,8 @@ type UserFormData = yup.InferType<typeof userSchema>;
 
 const LoginScreen = ({ navigation }) => {
 
+  const Authctx = useContext(AuthContext)
+
   let [fontsLoaded] = useFonts({
     PlusJakartaSans_200ExtraLight,
     PlusJakartaSans_300Light,
@@ -47,14 +50,28 @@ const LoginScreen = ({ navigation }) => {
     }
   });
 
-  const onSubmit = (data: UserFormData) => {
-    Alert.alert(
-      "Form Submitted",
-      `Email entered: ${data.email}`,
-      [
-        { text: "OK", onPress: () => console.log("OK Pressed") }
-      ]
-    );
+  const onSubmit = async (data: UserFormData) => {
+    try {
+      console.log(data);
+      const result = await Authctx.login(data.email, data.password);
+      Alert.alert(
+        "Form Submitted",
+        `Email entered: ${result.login}`,
+        [
+          { text: "OK", onPress: () => console.log("OK Pressed") }
+        ]
+      );
+    } catch(error) {
+      console.log(error)
+    }
+    // login(data.email, data.password);
+    // Alert.alert(
+    //   "Form Submitted",
+    //   `Email entered: ${data.email}`,
+    //   [
+    //     { text: "OK", onPress: () => console.log("OK Pressed") }
+    //   ]
+    // );
   };
 
   // Check if fonts are loaded
@@ -64,7 +81,7 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.titleApp]}>Guest App</Text>
+      <Text style={[styles.titleApp]}>Guest Apxxxp</Text>
       <Text style={[styles.descApp]}>Manage Your Invitation Easily</Text>
       <View style={styles.svgContainer}>
         <SvgUri width="100%" height="100%" uri={'https://ik.imagekit.io/vtvggda66/undraw_love_re_mwbq(1).svg'} />
@@ -72,12 +89,21 @@ const LoginScreen = ({ navigation }) => {
       <View style={{
         width: '80%',
       }}> 
-        <Text>Email</Text>
+        <Text style={{
+          fontFamily: 'PlusJakartaSans_400Regular',
+          fontSize: 12,
+          marginBottom: 3
+        }}>Email</Text>
         <Controller
           control={control}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  fontSize: 12
+                }
+              ]}
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
@@ -87,12 +113,22 @@ const LoginScreen = ({ navigation }) => {
           name="email"
         />
         {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
-        <Text>Password</Text>
+        <Text style={{
+          fontFamily: 'PlusJakartaSans_400Regular',
+          fontSize: 12,
+          marginBottom: 3
+        }}>Password</Text>
         <Controller
           control={control}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              style={styles.input}
+              style={
+                [styles.input,
+                  {
+                    fontSize: 12
+                  }
+                ]
+              }
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
@@ -168,7 +204,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',                  // Full width
-    marginTop: 20,                 // Space above the button
+    marginTop: 10,                 // Space above the button
     backgroundColor: '#536DFE',    // Green color
     borderRadius: 10,              // Rounded corners
     paddingVertical: 12,           // Vertical padding

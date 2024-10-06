@@ -14,6 +14,7 @@ const loginSchema = Yup.object().shape({
     .min(6, 'Password must be at least 6 characters long'),
 });
 
+
 export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState(null); // State to hold authentication info
   const [errors, setErrors] = useState({}); // State to hold validation errors
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   // Login function with Yup validation
   const login = async (email, password) => {
+  
     try {
       // Validate the input values using Yup schema
       await loginSchema.validate({ email, password }, { abortEarly: false });
@@ -34,7 +36,9 @@ export const AuthProvider = ({ children }) => {
       if (email === DUMMY_CREDENTIALS.email && password === DUMMY_CREDENTIALS.password) {
         setAuth({ email });
         setErrors({}); // Clear errors if authentication succeeds
-        return true; // Login success
+        return {
+          login: true,
+        } // Login success
       } else {
         setErrors({ general: 'Invalid email or password' }); // Set general error
         return false;
@@ -42,11 +46,14 @@ export const AuthProvider = ({ children }) => {
     } catch (validationErrors) {
       // Catch Yup validation errors and set them in the errors state
       const formattedErrors = {};
+      
       validationErrors.inner.forEach((err) => {
         formattedErrors[err.path] = err.message;
       });
+
       setErrors(formattedErrors);
       return false;
+
     }
   };
 
