@@ -6,6 +6,7 @@ import * as yup from 'yup';
 import { SvgUri } from 'react-native-svg';
 import { useFonts } from 'expo-font';
 import { AuthContext } from '../../context/authContext';
+import axios from 'axios';
 
 import {
   PlusJakartaSans_200ExtraLight,
@@ -51,14 +52,20 @@ const LoginScreen = ({ navigation }) => {
   const onSubmit = async (data: UserFormData) => {
     setIsLoading(true);
     try {
+      console.log("Login attempt with:", { email: data.email, password: data.password });
+  
       const result = await login.mutateAsync({ email: data.email, password: data.password });
-      if (result.login) {
+  
+      console.log("Login result:", result);
+  
+      // Check if a token is returned to confirm successful login
+      if (result.token) {
         Alert.alert(
           "Login Successful",
           "You have been logged in successfully.",
           [{ text: "OK", onPress: () => console.log("Login successful") }]
         );
-        // Navigate to the next screen or perform any other action on successful login
+        // Perform actions like navigating to the next screen
       } else {
         Alert.alert(
           "Login Failed",
@@ -67,16 +74,26 @@ const LoginScreen = ({ navigation }) => {
         );
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert(
-        "Error",
-        "An unexpected error occurred. Please try again.",
-        [{ text: "OK", onPress: () => console.log("Error in login") }]
-      );
+      if (axios.isAxiosError(error) && error.response) {
+        console.error('Error response:', error.response.data);
+        Alert.alert(
+          "Login Failed",
+          error.response.data?.message || "Please check your credentials and try again.",
+          [{ text: "OK", onPress: () => console.log("Login failed") }]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          "An unexpected error occurred. Please try again.",
+          [{ text: "OK", onPress: () => console.log("Error in login") }]
+        );
+      }
     } finally {
       setIsLoading(false);
     }
   };
+  
+  
 
   if (!fontsLoaded) {
     return <ActivityIndicator size="large" color="#0000ff" />;
