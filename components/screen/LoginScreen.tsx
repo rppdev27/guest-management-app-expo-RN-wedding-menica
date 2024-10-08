@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet, Button, TextInput, Alert, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, TextInput, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -17,20 +17,18 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
 
-
 const userSchema = yup.object({
   email: yup.string().email('Invalid email').required('Email is required'),
   password: yup.string()
     .required('No password provided')
-    .min(8, 'Password must be at least 8 characters')
-    .matches(/[a-zA-Z]/, 'Password must contain Latin letters')
 });
 
 type UserFormData = yup.InferType<typeof userSchema>;
 
 const LoginScreen = ({ navigation }) => {
-
-  const Authctx = useContext(AuthContext)
+  const { login } = useContext(AuthContext);
+  const [isLoading, setIsLoading] = useState(false);
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
   let [fontsLoaded] = useFonts({
     PlusJakartaSans_200ExtraLight,
@@ -51,59 +49,53 @@ const LoginScreen = ({ navigation }) => {
   });
 
   const onSubmit = async (data: UserFormData) => {
+    setIsLoading(true);
     try {
-      console.log(data);
-      const result = await Authctx.login(data.email, data.password);
+      const result = await login.mutateAsync({ email: data.email, password: data.password });
+      if (result.login) {
+        Alert.alert(
+          "Login Successful",
+          "You have been logged in successfully.",
+          [{ text: "OK", onPress: () => console.log("Login successful") }]
+        );
+        // Navigate to the next screen or perform any other action on successful login
+      } else {
+        Alert.alert(
+          "Login Failed",
+          "Please check your credentials and try again.",
+          [{ text: "OK", onPress: () => console.log("Login failed") }]
+        );
+      }
+    } catch (error) {
+      console.error(error);
       Alert.alert(
-        "Form Submitted",
-        `Email entered: ${result.login}`,
-        [
-          { text: "OK", onPress: () => console.log("OK Pressed") }
-        ]
+        "Error",
+        "An unexpected error occurred. Please try again.",
+        [{ text: "OK", onPress: () => console.log("Error in login") }]
       );
-    } catch(error) {
-      console.log(error)
+    } finally {
+      setIsLoading(false);
     }
-    // login(data.email, data.password);
-    // Alert.alert(
-    //   "Form Submitted",
-    //   `Email entered: ${data.email}`,
-    //   [
-    //     { text: "OK", onPress: () => console.log("OK Pressed") }
-    //   ]
-    // );
   };
 
-  // Check if fonts are loaded
   if (!fontsLoaded) {
-    return <ActivityIndicator size="large" color="#0000ff" />; // Loading indicator
+    return <ActivityIndicator size="large" color="#0000ff" />;
   }
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.titleApp]}>Guest Apxxxp</Text>
+      <Text style={[styles.titleApp]}>Guest App</Text>
       <Text style={[styles.descApp]}>Manage Your Invitation Easily</Text>
       <View style={styles.svgContainer}>
         <SvgUri width="100%" height="100%" uri={'https://ik.imagekit.io/vtvggda66/undraw_love_re_mwbq(1).svg'} />
       </View>
-      <View style={{
-        width: '80%',
-      }}> 
-        <Text style={{
-          fontFamily: 'PlusJakartaSans_400Regular',
-          fontSize: 12,
-          marginBottom: 3
-        }}>Email</Text>
+      <View style={{ width: '80%' }}> 
+        <Text style={styles.labelText}>Email</Text>
         <Controller
           control={control}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              style={[
-                styles.input,
-                {
-                  fontSize: 12
-                }
-              ]}
+              style={[styles.input, { fontSize: 12 }]}
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
@@ -113,22 +105,12 @@ const LoginScreen = ({ navigation }) => {
           name="email"
         />
         {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
-        <Text style={{
-          fontFamily: 'PlusJakartaSans_400Regular',
-          fontSize: 12,
-          marginBottom: 3
-        }}>Password</Text>
+        <Text style={styles.labelText}>Password</Text>
         <Controller
           control={control}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              style={
-                [styles.input,
-                  {
-                    fontSize: 12
-                  }
-                ]
-              }
+              style={[styles.input, { fontSize: 12 }]}
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
@@ -139,13 +121,17 @@ const LoginScreen = ({ navigation }) => {
           name="password"
         />
         {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
-        <View style={{
-          width: '100%',
-        }}>
-          <TouchableOpacity style={styles.button}  onPress={handleSubmit(onSubmit)} >
-            <Text style={
-              [styles.buttonText,]
-            }>Login</Text>
+        <View style={{ width: '100%' }}>
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleSubmit(onSubmit)}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Login</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -162,7 +148,7 @@ const styles = StyleSheet.create({
   svgContainer: {
     width: 200,
     height: 200,
-    marginBottom: 20,
+    marginBottom: 0,
   },
   formContainer: {
     width: '80%',
@@ -226,6 +212,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'PlusJakartaSans_500Medium',
     letterSpacing: 0.7,            // Center the text
+  },
+  labelText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 12,
+    marginBottom: 3
   },
   
 });

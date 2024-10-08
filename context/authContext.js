@@ -1,65 +1,81 @@
-import React, { createContext, useState } from 'react';
-import * as Yup from 'yup'; // Import Yup for validation
+import React, { createContext, useState, useEffect } from 'react';
+import * as Yup from 'yup';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 // Create the AuthContext
 export const AuthContext = createContext();
 
-// Define a Yup schema for validating login form (email instead of username)
+// Define a Yup schema for validating login form
 const loginSchema = Yup.object().shape({
   email: Yup.string()
-    .email('Invalid email address') // Validate email format
-    .required('Email is required'), // Make email required
+    .email('Invalid email address')
+    .required('Email is required'),
   password: Yup.string()
     .required('Password is required')
     .min(6, 'Password must be at least 6 characters long'),
 });
 
-
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(null); // State to hold authentication info
-  const [errors, setErrors] = useState({}); // State to hold validation errors
+  const [auth, setAuth] = useState(null);
+  const [errors, setErrors] = useState({});
+  const queryClient = useQueryClient();
 
-  // Dummy static credentials
-  const DUMMY_CREDENTIALS = {
-    email: 'hello@menica.pro',
-    password: 'hellomenicapro',
-  };
+  useEffect(() => {
+    checkToken();
+  }, []);
 
-  // Login function with Yup validation
-  const login = async (email, password) => {
-  
-    try {
-      // Validate the input values using Yup schema
-      await loginSchema.validate({ email, password }, { abortEarly: false });
-      
-      // If the credentials match, set authentication
-      if (email === DUMMY_CREDENTIALS.email && password === DUMMY_CREDENTIALS.password) {
-        setAuth({ email });
-        setErrors({}); // Clear errors if authentication succeeds
-        return {
-          login: true,
-        } // Login success
-      } else {
-        setErrors({ general: 'Invalid email or password' }); // Set general error
-        return false;
-      }
-    } catch (validationErrors) {
-      // Catch Yup validation errors and set them in the errors state
-      const formattedErrors = {};
-      
-      validationErrors.inner.forEach((err) => {
-        formattedErrors[err.path] = err.message;
-      });
-
-      setErrors(formattedErrors);
-      return false;
-
+  const checkToken = async () => {
+    const token = await AsyncStorage.getItem('userToken');
+    if (token) {
+      setAuth({ token });
     }
   };
 
-  // Logout function
-  const logout = () => {
+  const login = useMutation({
+    mutationFn: async ({ email, password }) => {
+      try {
+        // Validate the input values using Yup schema
+        await loginSchema.validate({ email, password }, { abortEarly: false });
+        
+        // Make API call to /signin endpoint
+        const response = await axios.post(`${API_URL}/signin`, { email, password });
+        return response.data;
+      } catch (error) {
+        if (error instanceof Yup.ValidationError) {
+          // Handle Yup validation errors
+          const formattedErrors = {};
+          error.inner.forEach((err) => {
+            formattedErrors[err.path] = err.message;
+          });
+          setErrors(formattedErrors);
+          throw new Error('Validation failed');
+        }
+        // Handle API errors
+        if (axios.isAxiosError(error)) {
+          setErrors({ general: error.response?.data?.message || 'Login failed' });
+        }
+        throw error;
+      }
+    },
+    onSuccess: async (data) => {
+      setAuth(data.user);
+      await AsyncStorage.setItem('userToken', data.token);
+      queryClient.setQueryData(['user'], data.user);
+      setErrors({});
+    },
+    onError: (error) => {
+      console.error('Login error:', error);
+    }
+  });
+
+  const logout = async () => {
     setAuth(null);
+    await AsyncStorage.removeItem('userToken');
+    queryClient.clear();
   };
 
   return (
